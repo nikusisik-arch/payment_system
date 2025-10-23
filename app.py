@@ -379,49 +379,6 @@ def process_visits(uploaded_df):
 
 # Основное приложение
 def main():
-    # Диагностический блок
-    st.write("🔍 **Диагностика подключения к GitHub:**")
-    
-    try:
-        st.write(f"**REPO_OWNER:** {REPO_OWNER}")
-        st.write(f"**REPO_NAME:** {REPO_NAME}")
-        st.write(f"**Токен начинается с:** {GITHUB_TOKEN[:10]}...")
-        st.write(f"**Длина токена:** {len(GITHUB_TOKEN)}")
-        
-        # Тестируем подключение к репозиторию
-        url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-        response = requests.get(url, headers=headers)
-        
-        st.write(f"**Статус ответа GitHub API:** {response.status_code}")
-        
-        if response.status_code == 200:
-            st.success("✅ Репозиторий доступен!")
-            
-            # Проверяем файл data/payments.json
-            file_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
-            file_response = requests.get(file_url, headers=headers)
-            st.write(f"**Статус файла data/payments.json:** {file_response.status_code}")
-            
-            if file_response.status_code == 200:
-                st.success("✅ Файл data/payments.json найден!")
-            elif file_response.status_code == 404:
-                st.warning("⚠️ Файл data/payments.json не найден! Создайте его.")
-                st.info("Создайте файл data/payments.json в репозитории с содержимым: []")
-            
-        elif response.status_code == 404:
-            st.error("❌ Репозиторий не найден! Проверьте REPO_OWNER и REPO_NAME")
-        elif response.status_code == 401:
-            st.error("❌ Неверный токен! Проверьте GITHUB_TOKEN")
-        else:
-            st.error(f"❌ Ошибка: {response.status_code}")
-            if response.text:
-                st.code(response.text)
-                
-    except Exception as e:
-        st.error(f"❌ Ошибка диагностики: {e}")
-    
-    st.markdown("---")
     
     # Минималистичный CSS
     st.markdown("""
@@ -893,6 +850,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
