@@ -435,39 +435,6 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("### 🔗 Данные сохраняются в GitHub (надежное хранение)")
-    st.markdown("---")
-    
-    # Диагностический блок
-    st.write("🔍 **Диагностика подключения к GitHub:**")
-    
-    try:
-        st.write(f"**REPO_OWNER:** {REPO_OWNER}")
-        st.write(f"**REPO_NAME:** {REPO_NAME}")
-        st.write(f"**Токен начинается с:** {GITHUB_TOKEN[:10]}...")
-        st.write(f"**Длина токена:** {len(GITHUB_TOKEN)}")
-        
-        # Тестируем подключение
-        url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-        response = requests.get(url, headers=headers)
-        
-        st.write(f"**Статус ответа GitHub API:** {response.status_code}")
-        
-        if response.status_code == 200:
-            st.success("✅ Репозиторий доступен!")
-        elif response.status_code == 404:
-            st.error("❌ Репозиторий не найден! Проверьте REPO_OWNER и REPO_NAME")
-        elif response.status_code == 401:
-            st.error("❌ Неверный токен! Проверьте GITHUB_TOKEN")
-        else:
-            st.error(f"❌ Ошибка: {response.status_code} - {response.text}")
-            
-    except Exception as e:
-        st.error(f"❌ Ошибка диагностики: {e}")
-    
-    st.markdown("---")
-    
     # Минималистичный CSS
     st.markdown("""
     <style>
@@ -850,6 +817,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
