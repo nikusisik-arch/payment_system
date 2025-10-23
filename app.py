@@ -218,6 +218,7 @@ def main():
         st.error(f"❌ Ошибка диагностики: {e}")
     
     st.markdown("---")
+    
     # Минималистичный CSS
     st.markdown("""
     <style>
@@ -600,4 +601,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
