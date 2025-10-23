@@ -1,52 +1,123 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
+import json
+import requests
+import base64
 from datetime import datetime
-import os
+import io
 
 # Настройка страницы
 st.set_page_config(
-    page_title="Система учета оплат визитов",
+    page_title="Payment System",
     page_icon="💰",
     layout="wide"
 )
 
-# Инициализация базы данных
-def init_database():
-    conn = sqlite3.connect('payments.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS paid_visits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            subject_id TEXT,
-            visit_name TEXT,
-            visit_date TEXT,
-            payment_date TEXT,
-            payment_amount REAL
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Получаем настройки из secrets
+try:
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+    REPO_OWNER = st.secrets["REPO_OWNER"] 
+    REPO_NAME = st.secrets["REPO_NAME"]
+    FILE_PATH = "data/payments.json"
+except KeyError as e:
+    st.error(f"❌ Ошибка конфигурации: {e}. Проверьте файл secrets.toml")
+    st.stop()
 
-# Загрузка оплаченных визитов
-def load_paid_visits():
-    conn = sqlite3.connect('payments.db')
+# Функции для работы с GitHub
+def get_file_from_github():
+    """Загружает файл с данными из GitHub"""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    
     try:
-        df = pd.read_sql_query("SELECT * FROM paid_visits", conn)
-        return df
-    except:
-        return pd.DataFrame(columns=['subject_id', 'visit_name', 'visit_date', 'payment_date', 'payment_amount'])
-    finally:
-        conn.close()
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content = response.json()
+            file_content = base64.b64decode(content['content']).decode('utf-8')
+            data = json.loads(file_content)
+            return data, content['sha']
+        else:
+            return [], None
+    except Exception as e:
+        st.error(f"Ошибка загрузки данных: {e}")
+        return [], None
 
-# Сохранение оплаченных визитов
+def save_file_to_github(data, sha=None):
+    """Сохраняет файл с данными в GitHub"""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    
+    content = base64.b64encode(
+        json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
+    ).decode('utf-8')
+    
+    payload = {
+        "message": f"Update payments data - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "content": content
+    }
+    
+    if sha:
+        payload["sha"] = sha
+    
+    try:
+        response = requests.put(url, headers=headers, json=payload)
+        return response.status_code in [200, 201]
+    except Exception as e:
+        st.error(f"Ошибка сохранения данных: {e}")
+        return False
+
+# Функции для работы с данными
+def load_paid_visits():
+    """Загружает оплаченные визиты из GitHub"""
+    with st.spinner("Загружаем данные из GitHub..."):
+        data, sha = get_file_from_github()
+        if data:
+            df = pd.DataFrame(data)
+            st.session_state['github_sha'] = sha
+            return df
+        else:
+            st.session_state['github_sha'] = None
+            return pd.DataFrame(columns=['subject_id', 'visit_name', 'visit_date', 'payment_date', 'payment_amount'])
+
 def save_paid_visits(visits_df):
-    conn = sqlite3.connect('payments.db')
-    visits_df.to_sql('paid_visits', conn, if_exists='append', index=False)
-    conn.close()
+    """Сохраняет оплаченные визиты в GitHub"""
+    with st.spinner("Сохраняем данные в GitHub..."):
+        # Загружаем существующие данные
+        existing_data, current_sha = get_file_from_github()
+        
+        # Добавляем новые данные
+        new_data = visits_df.to_dict('records')
+        all_data = existing_data + new_data
+        
+        # Сохраняем в GitHub
+        success = save_file_to_github(all_data, current_sha)
+        
+        if success:
+            st.success("✅ Данные успешно сохранены в GitHub!")
+            # Обновляем локальный кэш
+            st.session_state['github_sha'] = None
+        else:
+            st.error("❌ Ошибка сохранения в GitHub")
+        
+        return success
+
+def clear_all_data():
+    """Очищает все данные в GitHub"""
+    with st.spinner("Очищаем данные в GitHub..."):
+        existing_data, current_sha = get_file_from_github()
+        success = save_file_to_github([], current_sha)
+        
+        if success:
+            st.success("✅ Все данные очищены!")
+            st.session_state['github_sha'] = None
+        else:
+            st.error("❌ Ошибка очистки данных")
+        
+        return success
 
 # Обработка данных визитов
 def process_visits(uploaded_df):
+    """Обрабатывает загруженные визиты и находит дубликаты"""
     # Переименовываем столбцы для удобства
     uploaded_df.columns = ['subject_id', 'visit_name', 'visit_date']
     
@@ -58,15 +129,12 @@ def process_visits(uploaded_df):
     
     if not paid_visits.empty:
         # Создаем ключи для сравнения
-        # 1. Полный ключ: ID + название + дата (точные дубликаты)
         uploaded_df['full_key'] = uploaded_df['subject_id'].astype(str) + '_' + uploaded_df['visit_name'].astype(str) + '_' + uploaded_df['visit_date'].astype(str)
         paid_visits['full_key'] = paid_visits['subject_id'].astype(str) + '_' + paid_visits['visit_name'].astype(str) + '_' + paid_visits['visit_date'].astype(str)
         
-        # 2. Частичный ключ: ID + название (тот же тип визита)
         uploaded_df['visit_type_key'] = uploaded_df['subject_id'].astype(str) + '_' + uploaded_df['visit_name'].astype(str)
         paid_visits['visit_type_key'] = paid_visits['subject_id'].astype(str) + '_' + paid_visits['visit_name'].astype(str)
         
-        # 3. Ключ по дате: ID + дата (подозрительные визиты)
         uploaded_df['date_key'] = uploaded_df['subject_id'].astype(str) + '_' + uploaded_df['visit_date'].astype(str)
         paid_visits['date_key'] = paid_visits['subject_id'].astype(str) + '_' + paid_visits['visit_date'].astype(str)
         
@@ -81,42 +149,34 @@ def process_visits(uploaded_df):
         same_visit_different_date = uploaded_df[same_visit_type_mask].copy()
         suspicious_same_date = uploaded_df[same_date_mask].copy()
         
-        # Добавляем информацию о предыдущих записях для каждой категории
+        # Добавляем информацию о предыдущих записях
         if not exact_duplicates.empty:
             exact_duplicates = exact_duplicates.merge(
-                paid_visits[['full_key', 'payment_date']].rename(columns={
-                    'payment_date': 'previous_payment_date'
-                }),
-                on='full_key',
-                how='left'
+                paid_visits[['full_key', 'payment_date']].rename(columns={'payment_date': 'previous_payment_date'}),
+                on='full_key', how='left'
             )
         
         if not same_visit_different_date.empty:
             same_visit_different_date = same_visit_different_date.merge(
                 paid_visits[['visit_type_key', 'visit_date', 'payment_date']].rename(columns={
-                    'visit_date': 'previous_visit_date',
-                    'payment_date': 'previous_payment_date'
+                    'visit_date': 'previous_visit_date', 'payment_date': 'previous_payment_date'
                 }),
-                on='visit_type_key',
-                how='left'
+                on='visit_type_key', how='left'
             )
         
         if not suspicious_same_date.empty:
             suspicious_same_date = suspicious_same_date.merge(
                 paid_visits[['date_key', 'visit_name', 'payment_date']].rename(columns={
-                    'visit_name': 'previous_visit_name',
-                    'payment_date': 'previous_payment_date'
+                    'visit_name': 'previous_visit_name', 'payment_date': 'previous_payment_date'
                 }),
-                on='date_key',
-                how='left'
+                on='date_key', how='left'
             )
         
         # Убираем служебные столбцы
         columns_to_drop = ['full_key', 'visit_type_key', 'date_key']
-        new_visits = new_visits.drop(columns_to_drop, axis=1) if not new_visits.empty else new_visits
-        exact_duplicates = exact_duplicates.drop(columns_to_drop, axis=1) if not exact_duplicates.empty else exact_duplicates
-        same_visit_different_date = same_visit_different_date.drop(columns_to_drop, axis=1) if not same_visit_different_date.empty else same_visit_different_date
-        suspicious_same_date = suspicious_same_date.drop(columns_to_drop, axis=1) if not suspicious_same_date.empty else suspicious_same_date
+        for df in [new_visits, exact_duplicates, same_visit_different_date, suspicious_same_date]:
+            if not df.empty:
+                df.drop(columns_to_drop, axis=1, inplace=True)
         
     else:
         new_visits = uploaded_df.copy()
@@ -128,13 +188,78 @@ def process_visits(uploaded_df):
 
 # Основное приложение
 def main():
-    init_database()
+    # Минималистичный CSS
+    st.markdown("""
+    <style>
+    .app-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0 2rem 0;
+        border-bottom: 1px solid #e6e9ef;
+        margin-bottom: 2rem;
+    }
+    .app-logo {
+        display: flex;
+        align-items: center;
+        margin-right: auto;
+    }
+    .logo-icon {
+        width: 40px;
+        height: 40px;
+        background: #1f77b4;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        color: white;
+    }
+    .app-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #1f77b4;
+        margin: 0;
+    }
+    .app-version {
+        background: #f8f9fa;
+        color: #6c757d;
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
-    st.title("💰 Система учета оплат визитов исследователям")
+    # Простой заголовок
+    st.markdown("""
+    <div class="app-header">
+        <div class="app-logo">
+            <div class="logo-icon">💰</div>
+            <div class="app-title">Payment System</div>
+        </div>
+        <div class="app-version">v2.0 GitHub</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("### 🔗 Данные сохраняются в GitHub (надежное хранение)")
     st.markdown("---")
     
-    # Боковая панель с информацией
+    # Проверяем подключение к GitHub
     with st.sidebar:
+        st.header("🔧 Статус системы")
+        
+        # Проверяем подключение
+        try:
+            data, sha = get_file_from_github()
+            st.success("✅ GitHub подключен")
+            st.info(f"📊 Записей в базе: {len(data)}")
+        except:
+            st.error("❌ Ошибка подключения к GitHub")
+        
+        st.markdown("---")
+        
         st.header("📋 Инструкция")
         st.markdown("""
         **Формат Excel-файла:**
@@ -147,16 +272,6 @@ def main():
         - **Тот же тип визита**: ID + визит (другая дата)
         - **Подозрительные**: ID + дата (другой визит)
         """)
-        
-        st.markdown("---")
-        
-        # Статистика
-        paid_visits = load_paid_visits()
-        if not paid_visits.empty:
-            st.header("📊 Статистика")
-            st.metric("Всего оплаченных визитов", len(paid_visits))
-            st.metric("Уникальных субъектов", paid_visits['subject_id'].nunique())
-            st.metric("Уникальных типов визитов", paid_visits['visit_name'].nunique())
     
     # Основная область
     col1, col2 = st.columns([3, 1])
@@ -219,7 +334,7 @@ def main():
                                 st.write(f"**ID пациента:** {row['subject_id']}")
                                 st.write(f"**Название визита:** {row['visit_name']}")
                                 st.write(f"**Дата визита:** {row['visit_date']}")
-                                if 'previous_payment_date' in row:
+                                if 'previous_payment_date' in row and pd.notna(row['previous_payment_date']):
                                     st.write(f"**Дата предыдущей оплаты:** {row['previous_payment_date']}")
                                 st.error("❌ **ТОЧНЫЙ ДУБЛИКАТ**: Не будет оплачен!")
                         
@@ -237,7 +352,7 @@ def main():
                                 st.write(f"**ID пациента:** {row['subject_id']}")
                                 st.write(f"**Название визита:** {row['visit_name']}")
                                 st.write(f"**Текущая дата визита:** {row['visit_date']}")
-                                if 'previous_visit_date' in row:
+                                if 'previous_visit_date' in row and pd.notna(row['previous_visit_date']):
                                     st.write(f"**Ранее оплаченная дата:** {row['previous_visit_date']}")
                                     st.write(f"**Дата предыдущей оплаты:** {row['previous_payment_date']}")
                                 st.warning("🔄 **Дата изменилась**: Проверьте, нужна ли доплата")
@@ -263,7 +378,7 @@ def main():
                                 st.write(f"**ID пациента:** {row['subject_id']}")
                                 st.write(f"**Текущий визит:** {row['visit_name']}")
                                 st.write(f"**Дата:** {row['visit_date']}")
-                                if 'previous_visit_name' in row:
+                                if 'previous_visit_name' in row and pd.notna(row['previous_visit_name']):
                                     st.write(f"**Ранее оплаченный визит в эту дату:** {row['previous_visit_name']}")
                                     st.write(f"**Дата предыдущей оплаты:** {row['previous_payment_date']}")
                                 st.error("🚨 **ПОДОЗРИТЕЛЬНО**: Два разных визита в один день!")
@@ -333,8 +448,7 @@ def main():
                     
                     with col_btn1:
                         # Скачать отчет
-                        from io import BytesIO
-                        excel_buffer = BytesIO()
+                        excel_buffer = io.BytesIO()
                         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                             visits_to_pay.to_excel(writer, sheet_name='К оплате', index=False)
                             
@@ -366,11 +480,12 @@ def main():
                             visits_to_save['payment_date'] = datetime.now().strftime('%Y-%m-%d')
                             visits_to_save['payment_amount'] = 0.0
                             
-                            # Сохраняем в базу
-                            save_paid_visits(visits_to_save[['subject_id', 'visit_name', 'visit_date', 'payment_date', 'payment_amount']])
+                            # Сохраняем в GitHub
+                            success = save_paid_visits(visits_to_save[['subject_id', 'visit_name', 'visit_date', 'payment_date', 'payment_amount']])
                             
-                            st.success(f"✅ {len(visits_to_pay)} визитов отмечены как оплаченные!")
-                            st.rerun()
+                            if success:
+                                st.success(f"✅ {len(visits_to_pay)} визитов отмечены как оплаченные!")
+                                st.rerun()
                     
                     with col_btn3:
                         if st.button("🔄 Обновить данные", key="refresh_data_btn"):
@@ -382,9 +497,17 @@ def main():
     
     with col2:
         st.header("📈 История оплат")
+        
+        # Загружаем и показываем историю
         paid_visits = load_paid_visits()
         
         if not paid_visits.empty:
+            # Статистика
+            st.subheader("📊 Статистика")
+            st.metric("Всего оплаченных визитов", len(paid_visits))
+            st.metric("Уникальных субъектов", paid_visits['subject_id'].nunique())
+            st.metric("Уникальных типов визитов", paid_visits['visit_name'].nunique())
+            
             # Последние оплаты
             st.subheader("🕒 Последние оплаты")
             recent_payments = paid_visits.sort_values('payment_date', ascending=False).head(5)
@@ -398,7 +521,7 @@ def main():
         else:
             st.info("История оплат пустая")
         
-        # Управление данными (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+        # Управление данными
         st.subheader("🛠️ Управление")
         
         if st.button("📊 Показать всю историю", key="show_history_btn"):
@@ -407,12 +530,25 @@ def main():
             else:
                 st.info("История пустая")
         
-        # Используем session_state для управления состоянием удаления
+        # Экспорт истории
+        if not paid_visits.empty:
+            excel_buffer = io.BytesIO()
+            paid_visits.to_excel(excel_buffer, index=False, engine='openpyxl')
+            
+            st.download_button(
+                label="📥 Экспорт истории в Excel",
+                data=excel_buffer.getvalue(),
+                file_name=f"istoriya_oplat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="export_history_btn"
+            )
+        
+        # Очистка истории
         if 'confirm_delete' not in st.session_state:
             st.session_state.confirm_delete = False
         
         if not st.session_state.confirm_delete:
-            if st.button("🗑️ Очистить историю", help="Удалить все записи об оплатах", key="clear_history_btn"):
+            if st.button("🗑️ Очистить всю историю", help="Удалить все записи об оплатах", key="clear_history_btn"):
                 st.session_state.confirm_delete = True
                 st.rerun()
         else:
@@ -422,14 +558,10 @@ def main():
             
             with col_confirm1:
                 if st.button("✅ Да, удалить", type="primary", key="confirm_delete_btn"):
-                    conn = sqlite3.connect('payments.db')
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM paid_visits")
-                    conn.commit()
-                    conn.close()
-                    st.session_state.confirm_delete = False
-                    st.success("✅ История очищена!")
-                    st.rerun()
+                    success = clear_all_data()
+                    if success:
+                        st.session_state.confirm_delete = False
+                        st.rerun()
             
             with col_confirm2:
                 if st.button("❌ Отмена", key="cancel_delete_btn"):
