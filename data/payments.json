@@ -47,5 +47,96 @@
     "visit_date": "2023-02-23",
     "payment_date": "2025-10-23",
     "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-001",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-08-31",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-002",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-08-31",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-003",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-08-31",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-004",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-09-15",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-005",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-09-25",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-006",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-09-29",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-007",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-09-29",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-008",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-10-05",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-009",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-10-13",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-010",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-02",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-011",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-03",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-012",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-14",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-013",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-16",
+    "payment_date": "2025-10-24",
+    "payment_amount": 0.0
   }
 ]
