@@ -138,5 +138,47 @@
     "visit_date": "2023-11-16",
     "payment_date": "2025-10-24",
     "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-001",
+    "visit_name": "Визит 2 - Последующее наблюдение",
+    "visit_date": "2024-03-01",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-002",
+    "visit_name": "Визит 2 - Последующее наблюдение",
+    "visit_date": "2024-03-01",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-003",
+    "visit_name": "Визит 2 - Последующее наблюдение",
+    "visit_date": "2024-03-07",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-015",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-16",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-016",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-11-17",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-017",
+    "visit_name": "Визит 1 - Исходная оценка",
+    "visit_date": "2023-12-01",
+    "payment_date": "2025-10-31",
+    "payment_amount": 0.0
   }
 ]
