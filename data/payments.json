@@ -180,5 +180,19 @@
     "visit_date": "2023-12-01",
     "payment_date": "2025-10-31",
     "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-001",
+    "visit_name": "Визит 2 - Последующее наблюдение",
+    "visit_date": "2024-03-02",
+    "payment_date": "2026-01-22",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "13-003",
+    "visit_name": "Визит 2 - Последующее наблюдение",
+    "visit_date": "2024-03-02",
+    "payment_date": "2026-01-22",
+    "payment_amount": 0.0
   }
 ]
