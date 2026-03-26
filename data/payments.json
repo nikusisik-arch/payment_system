@@ -40,5 +40,26 @@
     "visit_date": "2023-11-04",
     "payment_date": "2026-03-10",
     "payment_amount": 0.0
+  },
+  {
+    "subject_id": "16-002",
+    "visit_name": "Визит 3",
+    "visit_date": "2022-06-24",
+    "payment_date": "2026-03-26",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "16-003",
+    "visit_name": "Визит 1",
+    "visit_date": "2022-06-23",
+    "payment_date": "2026-03-26",
+    "payment_amount": 0.0
+  },
+  {
+    "subject_id": "16-004",
+    "visit_name": "Визит 1",
+    "visit_date": "2022-07-04",
+    "payment_date": "2026-03-26",
+    "payment_amount": 0.0
   }
 ]
